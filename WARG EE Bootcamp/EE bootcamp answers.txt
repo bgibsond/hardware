@@ -1,0 +1,112 @@
+BUS CONNECTOR & RPP
+Battery questions:
+1. LiPo is short for Lithium Polymer. LiPo batteries are made up of multiple lithium polymer cells, which are a subtype of lithium ion batteries that use a gel electrolyte and typically come in a rectangular package. They are lightweight, compact, and offer good power density, making them desirable for use in drones.
+2. 4S means 4 series, indicating that four cells are connected in series. 2P means 2 cells in parallel. This means a total of 8 cells - four sets of 2, with the two cells in each set connected in parallel, and the four sets connected in series.
+3. LiPo cells have a nominal voltage of 3.7V, a maximum of 4.2V, and a minimum of (debatably) 3.0V. For a 4S pack, that means 14.8V nominal, 16.8V max, and 12V min.
+4. State of charge = remaining capacity/total capacity
+5. Voltage decreases as state of charge goes down
+
+RPP questions:
+1. Blocks current flow in the reverse direction so you don't blow up your circuit if you plug the battery in the wrong way.
+2. Series diode (power losses due to voltage drop), indexed connectors (can't connect the power backwards if the connector will only go on one way), PNP BJT with base tied to ground through a resistor (which has all of the drawbacks of using a diode and none of the benefits), P-channel MOSFET with gate tied to ground (the best option), shunt diode + fuse (usually a bad idea)
+3. Metal Oxide Semiconductor Field Effect Transistor. A bit like a BJT, but with different names for the terminals, functionally infinite gate impedance, drain-source current is controlled by voltage rather than current, and no diode drop across it (which means a potential for considerably lower losses)
+4. P-channel MOSFET is the MOSFET counterpart to a PNP BJT, and has negative VgsTh (activated by a gate voltage lower than the source voltage). N-channel can be compared to an NPN BJT, and has positive VgsTh (activated by a gate voltage higher than the source voltage).
+5. The direction of the arrow on the symbol. P-channel means the arrow points away from the gate; N-channel means the arrow points towards it. Also, the body diode points from drain to source on a P-channel, and the opposite direction on an N-channel
+
+MOSFET questions
+1. A bit of current flows through the MOSFET's body diode, pulling up the source voltage. The gate remains tied to 0V. Source voltage exceeds VgsTh, and the MOSFET conducts. When the battery is connected the right way around, the MOSFET functionally behaves like a short circuit (or a very small resistance) between drain and source.
+2. Vgs is >= 0V, so the MOSFET behaves like an open circuit between drain and source
+3. Yes; the flow of current is stopped in the case of reverse polarity
+4. Zener diode between gate and ground, resistor between gate and BUS_UNPROTECTED. This will pull the gate to the Zener voltage rather than 0V.
+
+1. The resistance measured between the drain and source terminals when Vgs is higher than VgsTh. Typically in the mOhms or low tens of mOhms
+2. Conduction loss
+3. 8.8 mOhm, typically (@Vgs = -10V)
+4. @3A, P=79.2mW. @40A, P=14.08W
+5. @3A, P=37.8mW. @40A, P=6.72W
+6. The datasheet contains thermal resistance characteristics, in degrees celsius per watt
+
+
+
+
+BUS CURRENT SENSE
+op-amp questions:
+1. An op-amp is a semiconductor device which acts as a high-gain amplifier based on two differential voltage inputs. They are used with external components and feedback to perform mathematical operations on one or more voltages - they can be used to perform addition, subtraction, integration, and differentiation. Speaking from personal experience, they are extremely useful if not downright essential in all manner of analog signal processing applications.
+2. Gain represents a multiplication factor applied to the differential input voltage to determine the outptut voltage. Open-loop gain is very large, sometimes in the tens or hundreds of thousands depending on the particular op-amp.
+3. The power supply terminals are not often shown. Op-amp saturation voltages are usually defined in terms of the positive and negative supply voltages - the upper saturation voltage is usually a bit under the positive supply voltage, and the lower saturation voltage is usually a bit higher than the negative supply voltage. Rail-to-rail op-amps can get very close to their supply rails, but your typical general-purpose op-amp usually can't output voltages within a volt or two of the supply rails.
+4. Clipping/saturation/'hitting rail'. The op-amp will simply output the closest saturation voltage. For example, if the saturation voltages are +/-4.5V and the calculated output is 10V, the op-amp will output 4.5V.
+5. A differential amplifier produces an output equal to the difference between two input voltages times a gain factor.
+
+Current sense resistor questions:
+1. The current sense resistor needs to be small enough that it doesn't prevent the rest of the circuit from getting the current it needs. Usually no more than a few ohms. The given current sense resistor is much too large.
+	Checking the datasheet, the op-amp is the A1 variant of the INAx180 differential amplifier, which has a differential gain of 20. The output can swing within a few tens of mV of either voltage supply. On a 3.3V supply, this means a differential input of about 0.164V will saturate the output. The provided parts library includes 10 mOhm resistors, which will be adequate for measuring the assumed current draw of 3A and will also give headroom for measuring higher current draws.. will give extra headroom for measuring higher currents.
+2. P=90mW
+
+Current sense amplifier questions:
+1. The current sense amplifier produces a voltage proportional to the current through a resistor. It is implemented by passing the current through a resistor (of known value) and measuring the voltage drop across it, which can be achieved using a differential amplifier.
+2. A current sense amplifier measures the current through a resistor. It embodies a differential amplifier.
+3. INA180B1IDBVT. Pins 2 and 5 are for power.
+4. A decoupling capacitor is placed across the power terminals of a device, and helps to prevent noise generated by that device from affecting the rest of the power supply. The decoupling capacitor is not implemented correctly; it needs to be connected between 3.3V and GND, not in series with pin 5.
+	From a PCB design perspective, a decoupling capacitor should be placed as close as possible to the device it is associated with.
+
+CSA output:
+1. Current flows from BUS_PROTECTED to VBUS, from left to right. This means that the higher voltage will be on the left side of the resistor, at BUS_PROTECTED.
+2. -0.6V. This will saturate the GND rail.
+
+ADC questions:
+1. An analog to digital converter, or ADC, converts an analog voltage into digital data that can be read by a microcontroller. There are a few ways that an ADC can work; most of the ones you might find on a microcontroller use successive approximation - the input voltage (typically after a sample and hold circuit to prevent it from changing over the course of a single sample) and the output of a DAC are fed into a comparator. The DAC outputs a voltage in the middle of the measurement range, and the comparator returns either high or low depending on which voltage is higher. If the signal is higher than the DAC output (for example), a value of 1 is read to the most significant bit, then the DAC outputs a voltage in the middle of the upper half of the range. It continues this process multiple times, each successive attempt adding one more bit of precision to the measurement, and can measure a signal with the same resolution as the DAC.
+2. Resolution specifies the number of discrete voltage steps an ADC can measure. An 8-bit ADC can measure 256 unique values.
+3. From an earlier question, the CSA output at 3A is 0.6V. This corresponds to an ADC value of 46.
+4. Using one of the A3 variants of the INAx180 would have an output of 3V at 3A. This correspons to an ADC value of 231, assuming the ADC always rounds down. This gives greater precision, at the cost of being unable to measure currents higher than 3.3A.
+5. A larger current sense resistor means a higher voltage drop at the same current, at the cost of more power losses. A smaller current sense resistor means a smaller voltage drop at a given current, but less wasted power. A CSA with smaller gain has more headroom for measuring larger currents, which may be beneficial if it is expected to measure, say, 40A, but is less precise. A CSA with bigger gain means greater precision for small currents, but it'll saturate lower which limits the range it can measure.
+
+RC LPF:
+1. Noise is unwanted (usually random) content in a signal, introduced by things like the cosmic microwave background, electromagnetic interference, op-amps with forgotten decoupling capacitors, nearby power electronics, mains hum, solar radiation, microcontroller clocks, signal crosstalk, or Johnson-Nyquist (thermal) noise. Noise is typically associated with high frequencies.
+2. Signal noises can be increased by amplification
+3. Electromagnetic interference. Real circuits have parasitic capacitances with their surroundings, which can pick up electric fields, and parasitic inductances, which can result in induced currents from magnetic fields. It can be caused by natural sources (cosmic microwave background, solar flares, geomagnetic storms, etc) or man-made (radio telecommunications, high-voltage AC lines, etc.)
+4. From a hardware implementation standpoint, lowpass filtering can be used to reduce noise, differential pairs can be used to mitigate EMI and crosstalk introduced to a signal line, and separate analog and digital grounds can be used. From a PCB design standpoint, sensitive analog signals can be placed far away from potentially noisy signals (like clocks or motor connections), and when they must be near each other, don't run them parallel to each other (to mitigate mutual inductance) and leave enough space to put a bit of ground pour in between them to mitigate parasitic capacitive coupling.
+
+1. Impedance is a measure of how much a circuit blocks current flow. It includes both resistance (which is all we need when dealing with DC) and reactance (like resistance but it only affects AC).
+2. X=1/(omega*C)=1/(2*pi*f*C). In the s-domain, Z=1/sC
+3. Given an ideal capacitor with an infinitely long settling time, the output will be exactly equal to the DC input. At an infinitely high frequency, the output will be zero. This coins the name low-pass filter because it allows low frequencies to pass through, while blocking higher ones.
+4. In a general lowpass filter, the cutoff frequency is the frequency above which the filter begins to attenuate signal content. In an RC lowpass filter, the corner frequency is the frequency at which the signal is attenuated by 3dB. Fc = 1/(2*pi*R*C)
+5. Frequencies below the cutoff are not attenuated much or at all. Frequencies above the cutoff frequency are attenuated, with those further above the cutoff attenuated more. The slope of a first-order filter is 6dB per octave, or 20dB per decade
+6. The cutoff frequency is about 4.8 GHz, which is good for removing EMI from satellites and radiolocation, and not much else (notably, it completely fails to remove EMI from the 2.4 GHz band, which is used for wifi and bluetooth). I'm not sure how fast we're expecting the current to change or whether we need to measure it that fast. I am a little conflicted on how low the cutoff should go. The majority of noise is likely in the tens of kHz and above, and a current sensing circuit for measuring battery charge likely does not need especially fast settling time. A 1kOhm resistor gives a cutoff frequency of 48.2 kHz, which should be sufficient to remove RF noise while still maintaining a very fast response time.
+
+
+
+
+Voltage Sense:
+1. With the resistors as provided, a 14.8V input gives an 11.1V output. Given the desired ratio of In:Out of 14.8:3, that means that Rtop is approximately 3.9 times Rbot. Using the E12 series, 10kOhm and 39kOhm were selected.
+2. When the output of a voltage divider is connected to another part of the circuit, the resistance of that other part may affect the voltage at the output. If the other part of the circuit can be modelled as a resistance between the divider output and ground, it'll behave as another resistor in parallel to Rbot and result in the circuit behaving as if Rbot has a lower value than it does. When using a voltage divider, it is important that output resistance/impedance (depending on whether DC or AC) is considerably higher than the resistances in the voltage divider, to the point that the current drawn from the output is negligible.
+
+
+
+Buck Converter:
+1. A voltage regulator is a device that takes an input DC voltage and produces another, controlled DC voltage at its output. The two types are linear and switching. Linear regulators offer quiet, low-noise signals, but they can only reduce voltage not increase it, they have a minimum dropout voltage (for example, a linear regulator with a 2V dropout voltage could not be used to regulate a 3.7V supply down to 3.3V), and they are inefficient because they dissipate the power difference as heat. Current in ~= current out, but voltage in > voltage out - the power difference is lost as heat. Switching regulators are much more efficient, potentially boasting as high as 80% efficiency, and depending on the type they can produce output voltages lower or higher than the supply voltage, including negative voltages. However, they require a greater number of parts and they have a potential to introduce switching noise to the power supply.
+2. A buck converter is a type of switching regulator. The other three types are boost converters, buck-boost converters, and Cuk converters.
+3. An asynchronous buck converter uses only one switching element. The diode's forward voltage drop causes it to dissipate power as heat, limiting the efficiency of the converter. A synchronous buck converter uses two MOSFETs, one of which is in the place of the diode, which turns on when the other turns off. MOSFETs do not have a big voltage drop like diodes do, which creates the potential for greater efficiency in a synchronous buck converter; however, more circuitry is required to drive a second MOSFET.
+4. The header should say "buck converter," not "boost converter"
+
+Buck converter issues/notes:
+- Datasheet says to tie EN to the input voltage through a resistor and suggests 10k. Added R12.
+- FB voltage divider has wrong values to set 3.3V output. For R4=10k, the ideal value for R2 is 33.4k; datasheet recommends 33.2k. 33k is the closest E12 value and is within 1% of 33.2k
+- Datasheet recommends >10uF decoupling capacitor; C4 and C5 in parallel should be adequate.
+- Datasheet recommends 100nF decoupling capacitor on Vin to filter high frequency noise; C6 changed
+- Locations of C2 and L1 needed to be swapped
+- For 3.3V, the datasheet recomemnds an L1 vale of 2.2uH, not exceeding 4.7uH. Current L1 value of 3.3uH is within this range, so it could be left alone, but swapping it for the 2.2uH inductor from the same series will raise the current rating, which may be useful in a few moments
+- Datasheet also indicates that output capacitance should be between 20uF and 68uF. Changed C7 to 10uF and added another 10uF capacitor, designated C16. With C10 and C11 already present on the 3.3V node (C12 is too small to be of concern for this purpose), this brings the total output capacitance to 24.8uF, which is within an acceptable range
+- Ip-p is 2.12A. With an output current of 2A, this means the inductor needs to be rated for 3.06A peak and 2.1A RMS current. The inductor's datasheet doesn't indicate a peak current rating, but the 2.2uH version has an RMS current rating of 2.9uH. Given that overcurrent primarily causes damage through overheating, heat takes time to accumulate, and the cycle time is known (550kHz freq = 1.8us cycle time) and too short for much heat to build up over a single cycle, RMS is much more important than peak here. A 2.9A RMS current rating gives a bit of a margin above the calculated RMS current, which could help extend the functional lifespan of the part.
+
+
+
+Other issues/corrections in the schematic:
+- Q2 should be N-channel. A P-channel like that won't stop current through the motor, nor will it allow control - the source is connected to ground, which means that Vgs will never exceed the threshold unless the microcontroller can produce a large negative voltage output. Also, the body diode will still allow current through regardless of whether the microcontroller can produce a sufficient gate voltage to turn on the MOSFET.
+- R8 is much too small relative to R7 and even after swapping Q2 for an N-channel MOSFET the gate voltage still won't be high enough - increased R8 to 30k
+- Flyback diode D1 is backwards, and will burn up when the motor is turned on
+- C9 is backwards and will explode when power is connected
+- R10 is too small - microcontroller datasheet says to use 30 to 50 kOhm
+- C13 and C14 are too large - 20pF or so is appropriate, based on the microcontroller and crystal datasheets
+- Microcontroller datasheet recommends a smaller value for C15; changed it to 100nF
+
+
